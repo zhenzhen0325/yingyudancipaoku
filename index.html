@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>七下外研版英语跑酷</title>
+    <style>
+        :root {
+            --primary-purple: #C6A4E8;
+            --light-purple: #D8BFD8;
+            --pale-purple: #E6E6FA;
+            --lavender-blush: #FFF0F5;
+            --white: #FFFFFF;
+            --off-white: #F8F8FF;
+            --dark-purple-text: #7B2D8E;
+            --dark-overlay-bg: rgba(100, 70, 130, 0.92);
+            --option-box-bg: rgba(255, 255, 255, 0.25);
+            --lane-border-color: rgba(255, 255, 255, 0.15);
+            --text-shadow-color: rgba(0, 0, 0, 0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--light-purple) 0%, var(--primary-purple) 100%);
+            color: var(--white); overflow: hidden; user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .game-container { width: 100vw; height: 100vh; display: flex; position: relative; }
+
+        /* 首页单元选择 */
+        .unit-menu {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; width: 100%; max-width: 500px;
+            margin-top: 20px;
+        }
+        .unit-btn {
+            background: var(--white); color: var(--dark-purple-text);
+            padding: 20px; border-radius: 12px; font-size: 20px; font-weight: bold;
+            cursor: pointer; border: none; transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .unit-btn:hover { transform: scale(1.05); background: var(--lavender-blush); }
+
+        /* 顶部信息 */
+        .header-info {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            z-index: 200; text-align: center; text-shadow: 1px 1px 3px var(--text-shadow-color);
+        }
+        .game-title { font-size: 28px; font-weight: bold; color: var(--lavender-blush); margin-bottom: 5px; }
+        .score { font-size: 18px; color: var(--off-white); }
+
+        .question-area {
+            position: absolute; top: 90px; left: 50%; transform: translateX(-50%);
+            z-index: 190; text-align: center; font-size: 28px; font-weight: bold;
+            color: var(--white); text-shadow: 1px 1px 3px var(--text-shadow-color);
+            padding: 10px 25px; background: rgba(138, 43, 226, 0.4);
+            border-radius: 10px; border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .lives-container { position: absolute; top: 15px; right: 70px; z-index: 201; display: flex; gap: 8px; }
+        .heart { font-size: 28px; transition: all 0.3s; }
+        .heart.lost { opacity: 0.2; transform: scale(0.7); }
+
+        .sound-toggle {
+            position: absolute; top: 15px; right: 15px; z-index: 202;
+            width: 45px; height: 45px; background: rgba(255,255,255,0.2);
+            border: 2px solid var(--white); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 24px;
+        }
+
+        #result-message {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 60px; font-weight: bold; z-index: 150; opacity: 0; transition: opacity 0.3s;
+        }
+        #result-message.show { opacity: 1; }
+        #result-message.correct { color: #2ecc71; }
+        #result-message.wrong { color: #e74c3c; }
+
+        /* 游戏区域 */
+        .game-area { flex: 1; display: flex; position: relative; overflow: hidden; border-right: 3px solid var(--white); }
+        .lane { width: 33.333%; height: 100%; border-left: 1px dashed var(--lane-border-color); position: relative; cursor: pointer; }
+        .lane:first-child { border-left: none; }
+        .option-box {
+            position: absolute; top: -200px; left: 5%; width: 90%; height: 150px;
+            background: var(--option-box-bg); border: 2px solid var(--white);
+            border-radius: 12px; display: flex; justify-content: center; align-items: center;
+            text-align: center; font-weight: bold; padding: 10px 12px; pointer-events: none;
+        }
+        .option-box .chinese-translation { font-size: 18px; color: var(--dark-purple-text); }
+
+        .runner {
+            position: absolute; bottom: 10%; width: 50px; height: 70px;
+            z-index: 100; transition: left 0.25s ease-out; pointer-events: none;
+        }
+        .runner-head { width: 25px; height: 25px; background: var(--white); border-radius: 50%; margin: 0 auto; }
+        .runner-body { width: 5px; height: 30px; background: var(--white); margin: 0 auto; }
+        .runner-legs { display: flex; justify-content: center; gap: 10px; margin-top: -2px; }
+        .leg { width: 5px; height: 18px; background: var(--white); animation: run 0.35s infinite alternate; }
+        .leg:nth-child(2) { animation-delay: 0.175s; }
+        @keyframes run { from { transform: rotate(-40deg); } to { transform: rotate(40deg); } }
+
+        /* 右侧栏 */
+        .timeline {
+            width: 250px; background: var(--primary-purple); opacity: 0.9;
+            padding: 15px; overflow-y: auto; scroll-behavior: smooth; border-left: 3px solid var(--white);
+        }
+        .timeline-item {
+            margin: 12px 0; padding: 12px 10px; background: var(--lavender-blush);
+            border-radius: 10px; border: 2px solid var(--light-purple);
+            transition: all 0.3s; min-height: 60px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+        .timeline-item.active { animation: blink 1.2s infinite; transform: scale(1.1); background: var(--white); }
+        .timeline-item.completed { opacity: 0.5; background: var(--pale-purple); }
+        @keyframes blink { 0%,100% { box-shadow: 0 0 15px rgba(255,255,255,0.7); } 50% { box-shadow: 0 0 40px rgba(255,255,255,1); } }
+        .year { font-size: 16px; font-weight: bold; color: var(--primary-purple); word-break: break-all; }
+
+        /* 通用遮罩层 */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--dark-overlay-bg); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+            transition: opacity 0.5s; padding: 20px; overflow-y: auto;
+        }
+        .overlay.hidden { opacity: 0; pointer-events: none; }
+        .overlay h1 { font-size: 42px; margin-bottom: 20px; color: var(--lavender-blush); text-align: center; }
+        .overlay p { font-size: 18px; margin-bottom: 20px; text-align: center; line-height: 1.6; max-width: 650px; padding: 0 20px; }
+
+        button.main-btn {
+            padding: 13px 35px; font-size: 24px; background: var(--white);
+            color: var(--dark-purple-text); border: none; border-radius: 10px;
+            cursor: pointer; font-weight: bold; transition: all 0.3s; margin: 10px;
+        }
+        button.main-btn:hover { transform: scale(1.05); }
+
+        .difficulty-selection { margin-bottom: 25px; }
+        .difficulty-btn { padding: 8px 20px; font-size: 18px; background: var(--lavender-blush); margin: 0 5px; color: var(--dark-purple-text); border-radius: 8px; border:none; cursor:pointer;}
+        .difficulty-btn.active { background: var(--primary-purple); color: var(--white); }
+
+        /* 错题本 */
+        .wrong-words-section { width: 100%; max-width: 600px; margin: 20px 0; }
+        .wrong-words-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-height: 30vh; overflow-y: auto; padding: 10px; }
+        .wrong-word-card { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 10px; min-width: 140px; border: 1px solid rgba(255,255,255,0.3); }
+        .wrong-word-card .eng { font-weight: bold; color: #ffcc00; margin-bottom: 5px; }
+        .wrong-word-card .chn { font-size: 14px; color: #eee; }
+        .encourage-text { font-style: italic; color: #ffcc00; margin-top: 10px; font-size: 18px; text-align: center; }
+
+        @media screen and (max-width: 768px) {
+            .timeline { width: 130px; } .question-area { font-size: 22px; top: 75px; }
+            .game-title { font-size: 20px; } .lives-container { right: 60px; }
+            .option-box { height: 110px; } .year { font-size: 14px; }
+            .unit-menu { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 单元选择首页 -->
+        <div class="overlay" id="unitSelectionScreen">
+            <h1>📚 七下外研版英语跑酷</h1>
+            <p>请选择一个单元开始复习</p>
+            <div class="unit-menu">
+                <button class="unit-btn" onclick="selectUnit(1)">Unit 1</button>
+                <button class="unit-btn" onclick="selectUnit(2)">Unit 2</button>
+                <button class="unit-btn" onclick="selectUnit(3)">Unit 3</button>
+                <button class="unit-btn" onclick="selectUnit(4)">Unit 4</button>
+                <button class="unit-btn" onclick="selectUnit(5)">Unit 5</button>
+                <button class="unit-btn" onclick="selectUnit(6)">Unit 6</button>
+            </div>
+        </div>
+
+        <!-- 难度选择界面 -->
+        <div class="overlay hidden" id="difficultyScreen">
+            <h1 id="selectedUnitTitle">Unit 1</h1>
+            <p>根据英文单词，选择正确的中文翻译。<br>你有 3 条生命，准备好了吗？</p>
+            <div class="difficulty-selection">
+                <button class="difficulty-btn active" data-speed="5500">简单</button>
+                <button class="difficulty-btn" data-speed="4200">普通</button>
+                <button class="difficulty-btn" data-speed="2800">困难</button>
+            </div>
+            <button class="main-btn" onclick="startGame()">开始游戏</button>
+            <button class="main-btn" style="background:none; color:white; font-size:16px;" onclick="backToMenu()">返回主菜单</button>
+        </div>
+
+        <!-- 结束界面 -->
+        <div class="overlay hidden" id="gameOver">
+            <h2 id="gameOverTitle">Game Over!</h2>
+            <p>最终得分：<span id="finalScore"></span></p>
+            <div id="wrongWordsArea"></div>
+            <button class="main-btn" onclick="restartGame()">再来一局</button>
+            <button class="main-btn" style="background:none; color:white; font-size:16px;" onclick="backToMenu()">返回主菜单</button>
+        </div>
+
+        <!-- 游戏头 -->
+        <div class="header-info">
+            <div class="game-title" id="gameHeaderTitle">Unit 跑酷</div>
+            <div class="score">得分：<span id="score">0</span> / <span id="total">0</span></div>
+        </div>
+        <div class="lives-container" id="livesContainer"></div>
+        <div class="sound-toggle" id="soundToggle">🔊</div>
+        <div class="question-area"><span id="englishQuestionWord">—</span></div>
+        <div id="result-message"></div>
+
+        <!-- 跑酷区 -->
+        <div class="game-area" id="gameArea">
+            <div class="lane" id="lane0"><div class="option-box" id="box0"><div class="chinese-translation" id="option0"></div></div></div>
+            <div class="lane" id="lane1"><div class="option-box" id="box1"><div class="chinese-translation" id="option1"></div></div></div>
+            <div class="lane" id="lane2"><div class="option-box" id="box2"><div class="chinese-translation" id="option2"></div></div></div>
+            <div class="runner" id="runner">
+                <div class="runner-head"></div><div class="runner-body"></div>
+                <div class="runner-legs"><div class="leg"></div><div class="leg"></div></div>
+            </div>
+        </div>
+        <div class="timeline" id="timeline"></div>
+    </div>
+
+    <script>
+        // ==================== 单词全数据库 ====================
+        const allUnitsData = {
+            1: [
+                { english: "chocolate", chinese: "巧克力" }, { english: "factory", chinese: "工厂" }, { english: "exciting", chinese: "令人兴奋的" }, { english: "magical", chinese: "奇异的，美妙的" }, { english: "town", chinese: "镇，城镇" }, { english: "poor", chinese: "贫穷的" }, { english: "watery", chinese: "稀薄的，含水多的" }, { english: "cabbage", chinese: "卷心菜" }, { english: "freezing", chinese: "极冷的" }, { english: "become", chinese: "变成" }, { english: "touch", chinese: "感动，打动" }, { english: "sunless", chinese: "无阳光的" }, { english: "reason", chinese: "原因" }, { english: "everything", chinese: "每件事物" }, { english: "rich", chinese: "有钱的，富有的" }, { english: "chess", chinese: "国际象棋" }, { english: "bath", chinese: "洗澡" }, { english: "basket", chinese: "篮子" }, { english: "princess", chinese: "公主" }, { english: "example", chinese: "例子" }, { english: "experience", chinese: "经验；经历" }, { english: "believe", chinese: "认为" }, { english: "survey", chinese: "调查" }, { english: "instruction", chinese: "指示" }, { english: "empty", chinese: "空的" }, { english: "happen", chinese: "发生" }, { english: "presentation", chinese: "报告" }, { english: "hat", chinese: "帽子" }, { english: "blow", chinese: "吹动" }, { english: "wave", chinese: "挥动" }, { english: "voice", chinese: "说话声" }, { english: "himself", chinese: "他自己" }, { english: "shame", chinese: "羞愧" }, { english: "finally", chinese: "最后" }, { english: "barber", chinese: "男理发师" }, { english: "fall", chinese: "落下" }, { english: "shoulder", chinese: "肩膀" }, { english: "customer", chinese: "顾客" }, { english: "surprised", chinese: "吃惊的" }, { english: "scissors", chinese: "剪刀" }, { english: "office", chinese: "办公室" }, { english: "post office", chinese: "邮局" }, { english: "receive", chinese: "收到" }, { english: "cancer", chinese: "癌症" }, { english: "wig", chinese: "假发" }, { english: "smart", chinese: "机灵的" }
+            ],
+            2: [
+                { english: "last but not least", chinese: "最后但同样重要的" }, { english: "marathon", chinese: "马拉松" }, { english: "line", chinese: "线" }, { english: "the finishing line", chinese: "终点线" }, { english: "breath", chinese: "呼吸" }, { english: "hold your breath", chinese: "屏住呼吸" }, { english: "confident", chinese: "自信的" }, { english: "stomachache", chinese: "胃痛" }, { english: "shall", chinese: "要不要...？" }, { english: "either", chinese: "任何一个" }, { english: "choice", chinese: "选择" }, { english: "neither", chinese: "两者都不" }, { english: "cheer", chinese: "欢呼，加油" }, { english: "cross", chinese: "穿过，越过" }, { english: "lifelong", chinese: "终身的" }, { english: "dream", chinese: "梦想" }, { english: "record", chinese: "记录" }, { english: "none", chinese: "全无" }, { english: "finish", chinese: "完成" }, { english: "encourage", chinese: "鼓励" }, { english: "both", chinese: "两者都" }, { english: "sink", chinese: "下沉" }, { english: "sink or swim", chinese: "自生自灭" }, { english: "surfer", chinese: "冲浪者" }, { english: "shark", chinese: "鲨鱼" }, { english: "attack", chinese: "袭击" }, { english: "lose", chinese: "失去，输掉" }, { english: "surfing", chinese: "冲浪运动" }, { english: "compare", chinese: "相比较" }, { english: "surfboard", chinese: "冲浪板" }, { english: "wave", chinese: "浪潮" }, { english: "gold", chinese: "金质的" }, { english: "medal", chinese: "奖牌" }, { english: "success", chinese: "成功" }, { english: "fit", chinese: "健壮的" }, { english: "final", chinese: "决赛" }, { english: "match", chinese: "比赛" }, { english: "attention", chinese: "注意" }, { english: "pay attention", chinese: "专心" }, { english: "continue", chinese: "继续" }, { english: "fight", chinese: "努力争取" }, { english: "score", chinese: "得分" }, { english: "goal", chinese: "进球；目标" }, { english: "victory", chinese: "胜利" }, { english: "chance", chinese: "机会" }, { english: "wonder", chinese: "想要知道" }, { english: "courage", chinese: "勇气" }, { english: "thanks to", chinese: "多亏" }, { english: "spirit", chinese: "精神" }
+            ],
+            3: [
+                { english: "delicious", chinese: "美味的" }, { english: "taste", chinese: "味道" }, { english: "beef", chinese: "牛肉" }, { english: "carrot", chinese: "胡萝卜" }, { english: "mutton", chinese: "羊肉" }, { english: "fat", chinese: "肥胖的；脂肪" }, { english: "hen", chinese: "母鸡" }, { english: "pot", chinese: "锅" }, { english: "onion", chinese: "洋葱" }, { english: "pancake", chinese: "薄饼" }, { english: "porridge", chinese: "粥" }, { english: "plain", chinese: "简单的，朴素的" }, { english: "menu", chinese: "菜单" }, { english: "medicine", chinese: "药" }, { english: "pill", chinese: "药丸" }, { english: "remain", chinese: "继续，保持" }, { english: "sandwich", chinese: "三明治" }, { english: "pie", chinese: "馅饼" }, { english: "pepper", chinese: "胡椒粉" }, { english: "slice", chinese: "切片" }, { english: "beat", chinese: "搅拌" }, { english: "salt", chinese: "盐" }, { english: "oil", chinese: "油" }, { english: "pan", chinese: "平底锅" }, { english: "mixture", chinese: "混合液" }, { english: "stir", chinese: "搅动" }, { english: "plate", chinese: "盘，碟" }, { english: "firm", chinese: "结实的" }, { english: "recipe", chinese: "食谱" }, { english: "ingredient", chinese: "食材" }, { english: "diet", chinese: "日常饮食" }, { english: "salad", chinese: "沙拉" }, { english: "hamburger", chinese: "汉堡包" }, { english: "snack", chinese: "小吃" }, { english: "chip", chinese: "炸薯条" }, { english: "dangerous", chinese: "危险的" }, { english: "border", chinese: "边界" }, { english: "Western", chinese: "西方的" }, { english: "dessert", chinese: "甜点" }, { english: "dynasty", chinese: "朝代" }, { english: "store", chinese: "贮藏" }, { english: "folk", chinese: "民间的" }, { english: "tale", chinese: "故事" }, { english: "emperor", chinese: "皇帝" }, { english: "stomach", chinese: "胃" }, { english: "Iranian", chinese: "伊朗人" }, { english: "flat", chinese: "平的" }, { english: "twin", chinese: "双胞胎之一" }, { english: "bridge", chinese: "桥梁" }
+            ],
+            4: [
+                { english: "dull", chinese: "愚笨的，迟钝的" }, { english: "imagine", chinese: "想象" }, { english: "alone", chinese: "单独，独自" }, { english: "might", chinese: "也许，大概" }, { english: "tool", chinese: "工具" }, { english: "list", chinese: "名单，目录" }, { english: "choose", chinese: "挑选，选择" }, { english: "novel", chinese: "小说" }, { english: "magazine", chinese: "杂志" }, { english: "solar", chinese: "太阳能的" }, { english: "media", chinese: "媒体" }, { english: "bored", chinese: "厌烦的" }, { english: "feeling", chinese: "感觉" }, { english: "lift", chinese: "改善；使快乐" }, { english: "lift sb's spirits", chinese: "使某人开心" }, { english: "funny", chinese: "有趣的" }, { english: "moment", chinese: "某一时刻" }, { english: "youthful", chinese: "年轻的" }, { english: "invite", chinese: "邀请" }, { english: "number", chinese: "数目" }, { english: "a number of", chinese: "一些" }, { english: "able", chinese: "有能力的" }, { english: "daily", chinese: "每日的" }, { english: "daily life", chinese: "日常生活" }, { english: "housework", chinese: "家务" }, { english: "unforgettable", chinese: "难以忘怀的" }, { english: "insect", chinese: "昆虫" }, { english: "large", chinese: "巨大的" }, { english: "mosquito", chinese: "蚊子" }, { english: "set", chinese: "确立" }, { english: "interest", chinese: "兴趣" }, { english: "butterfly", chinese: "蝴蝶" }, { english: "prince", chinese: "王子" }, { english: "monster", chinese: "妖怪" }, { english: "notice", chinese: "注意到" }, { english: "form", chinese: "形式，方式" }, { english: "social", chinese: "社交的" }, { english: "screen", chinese: "屏幕" }, { english: "couch", chinese: "长沙发" }, { english: "couch potato", chinese: "泡在电视前的人" }, { english: "sore", chinese: "疼痛的" }, { english: "neck", chinese: "脖子" }, { english: "deaf", chinese: "耳聋的" }, { english: "be deaf to sth", chinese: "不愿听某事" }, { english: "balanced", chinese: "均衡的" }, { english: "jog", chinese: "慢跑" }, { english: "fresh", chinese: "新鲜的" }, { english: "tennis", chinese: "网球" }, { english: "hike", chinese: "徒步旅行" }, { english: "ours", chinese: "我们的" }
+            ],
+            5: [
+                { english: "plateau", chinese: "高原" }, { english: "most", chinese: "最" }, { english: "cloud", chinese: "云" }, { english: "soft", chinese: "柔软的" }, { english: "brightly", chinese: "明亮地" }, { english: "sky", chinese: "天空" }, { english: "calm", chinese: "镇静的" }, { english: "above", chinese: "在...上方" }, { english: "express", chinese: "表达" }, { english: "grassland", chinese: "草原" }, { english: "field", chinese: "田地" }, { english: "than", chinese: "比" }, { english: "few", chinese: "很少" }, { english: "restaurant", chinese: "餐馆" }, { english: "present", chinese: "礼物" }, { english: "better", chinese: "更好的" }, { english: "proud", chinese: "自豪的" }, { english: "diary", chinese: "日记" }, { english: "describe", chinese: "描述" }, { english: "tide", chinese: "海潮" }, { english: "metre", chinese: "米" }, { english: "exhibition", chinese: "展览" }, { english: "lungfish", chinese: "肺鱼" }, { english: "lung", chinese: "肺" }, { english: "scientist", chinese: "科学家" }, { english: "develop", chinese: "发展" }, { english: "land", chinese: "陆地" }, { english: "aloud", chinese: "出声地" }, { english: "die", chinese: "消失，死" }, { english: "salty", chinese: "咸的" }, { english: "lie", chinese: "躺" }, { english: "surface", chinese: "表面" }, { english: "flow", chinese: "流，流动" }, { english: "level", chinese: "高度" }, { english: "less", chinese: "更少" }, { english: "suggest", chinese: "暗示" }, { english: "such as", chinese: "例如" }, { english: "snake", chinese: "蛇" }, { english: "only", chinese: "唯一的" }, { english: "however", chinese: "然而" }, { english: "wood", chinese: "木头" }, { english: "disappear", chinese: "消失" }, { english: "if", chinese: "如果" }, { english: "glacier", chinese: "冰川" }, { english: "climate", chinese: "气候" }
+            ],
+            6: [
+                { english: "airport", chinese: "机场" }, { english: "burn", chinese: "灼痛" }, { english: "expect", chinese: "预料" }, { english: "deep", chinese: "深深的" }, { english: "lemon", chinese: "柠檬" }, { english: "reply", chinese: "回答" }, { english: "mouthful", chinese: "一口" }, { english: "surprisingly", chinese: "惊人地" }, { english: "mask", chinese: "面具" }, { english: "normal", chinese: "正常的" }, { english: "ancient", chinese: "古代的" }, { english: "further", chinese: "更远" }, { english: "look forward to", chinese: "期待" }, { english: "trip", chinese: "旅游" }, { english: "general", chinese: "大体的" }, { english: "in general", chinese: "通常" }, { english: "curious", chinese: "好奇的" }, { english: "local", chinese: "本地的" }, { english: "places of interest", chinese: "名胜" }, { english: "hotel", chinese: "酒店" }, { english: "comfortable", chinese: "舒适的" }, { english: "other", chinese: "另外的" }, { english: "waterfall", chinese: "瀑布" }, { english: "powerful", chinese: "猛烈的" }, { english: "thunder", chinese: "雷声" }, { english: "painting", chinese: "绘画" }, { english: "roller coaster", chinese: "过山车" }, { english: "huge", chinese: "巨大的" }, { english: "myself", chinese: "我自己" }, { english: "ant", chinese: "蚂蚁" }, { english: "beauty", chinese: "美，美丽" }, { english: "accept", chinese: "接受" }, { english: "award", chinese: "奖项" }, { english: "understand", chinese: "了解" }, { english: "traffic", chinese: "交通" }, { english: "unexplored", chinese: "未曾探索的" }, { english: "seriously", chinese: "非常，严重" }, { english: "end", chinese: "使结束" }, { english: "spend", chinese: "度过" }, { english: "dream", chinese: "梦想" }, { english: "set out", chinese: "动身" }, { english: "achieve", chinese: "实现" }, { english: "geographical", chinese: "地理的" }, { english: "discovery", chinese: "发现" }, { english: "peak", chinese: "山峰" }, { english: "truth", chinese: "事实" }, { english: "climb", chinese: "爬山" }, { english: "discover", chinese: "发现" }, { english: "view", chinese: "视野" }, { english: "record", chinese: "记录" }, { english: "description", chinese: "描述" }
+            ]
+        };
+
+        const distractorPool = ["学校", "高兴", "伤心", "勇敢", "苹果", "老师", "医生", "足球", "游泳", "跳舞", "红色", "蓝色", "作业", "天气", "时间", "努力", "桌子", "电脑", "手机", "画画", "跳远",
+            "工厂", "兴奋的", "美妙的", "贫穷的", "极冷的", "原因", "所有事物", "有钱的", "国际象棋", "例子", "认为", "调查", "指示", "空的", "发生", "报告", "帽子", "理发师",
+            "肩膀", "顾客", "吃惊的", "剪刀", "办公室", "邮政局", "机灵的", "癌症", "选择", "梦想", "记录", "完成", "袭击", "奖牌", "胜利", "勇气", "精神", "美味", "牛肉", "胡萝卜", "羊肉"
+        ];
+
+        const encouragements = ["错误是进步的阶梯！💪", "记住这些错词，你就变强了！📚", "别气馁，再来一次一定会更棒！🌟", "学习就是不断纠错的过程，加油！✨"];
+
+        // ==================== 音效系统 ====================
+        let audioCtx = null;
+        let isMuted = false;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') {
+                    const resume = () => { audioCtx.resume().then(() => { document.body.removeEventListener('touchstart', resume); document.body.removeEventListener('mousedown', resume); }); };
+                    document.body.addEventListener('touchstart', resume, {once: true});
+                    document.body.addEventListener('mousedown', resume, {once: true});
+                }
+            }
+        }
+        function playSnd(freqs, d=0.3) {
+            if(isMuted || !audioCtx) return;
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = freqs[0] > 400 ? 'sine' : 'sawtooth'; osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(freqs[0], audioCtx.currentTime);
+            if(freqs[1]) osc.frequency.exponentialRampToValueAtTime(freqs[1], audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+            osc.start(); osc.stop(audioCtx.currentTime + d);
+        }
+
+        // ==================== 核心逻辑 ====================
+        let activeUnit = 1; // 当前选择的单元
+        let vocabularyData = allUnitsData[activeUnit]; // 存储当前单元的单词数据
+        let currentQ = 0, score = 0, lives = 3, gameActive = false, currentLane = 1, GAME_SPEED = 5500;
+        let animFrame = null, animStart = null, wrongWords = [], correctIdx = 0;
+
+        const runner = document.getElementById('runner');
+        const gameAreaEl = document.getElementById('gameArea');
+        const boxes = [document.getElementById('box0'), document.getElementById('box1'), document.getElementById('box2')];
+        const opts = [document.getElementById('option0'), document.getElementById('option1'), document.getElementById('option2')];
+        const timelineEl = document.getElementById('timeline');
+        const questionWord = document.getElementById('englishQuestionWord');
+        const resultMsg = document.getElementById('result-message');
+        const unitSelectionScreen = document.getElementById('unitSelectionScreen');
+        const difficultyScreen = document.getElementById('difficultyScreen');
+        const gameOverEl = document.getElementById('gameOver');
+        const livesEl = document.getElementById('livesContainer');
+        const wrongWordsArea = document.getElementById('wrongWordsArea');
+        const gameHeaderTitle = document.getElementById('gameHeaderTitle');
+
+        function hasConflict(dist, correct) {
+            const parts = correct.split(/[，；、（）()]/g).map(s => s.trim()).filter(s => s.length > 0);
+            const d = dist.trim();
+            if (d === correct.trim()) return true;
+            for (const p of parts) {
+                if (d === p || p === d) return true;
+                if (p.length >= 2 && (d.includes(p) || p.includes(d))) return true;
+            }
+            return false;
+        }
+
+        // --- 单元选择逻辑 ---
+        function selectUnit(num) {
+            activeUnit = num;
+            vocabularyData = allUnitsData[num];
+            unitSelectionScreen.classList.add('hidden');
+            difficultyScreen.classList.remove('hidden');
+            document.getElementById('selectedUnitTitle').textContent = "Unit " + num; // 修正为 Unit
+            gameHeaderTitle.textContent = "Unit " + num + " 跑酷"; // 修正为 Unit
+            document.getElementById('total').textContent = vocabularyData.length; // 更新总单词数
+        }
+
+        function backToMenu() {
+            stopAnimation(); // 停止游戏动画
+            gameActive = false; // 确保游戏非活跃
+            unitSelectionScreen.classList.remove('hidden');
+            difficultyScreen.classList.add('hidden');
+            gameOverEl.classList.add('hidden');
+            document.getElementById('score').textContent = '0'; // 分数归零
+        }
+
+        function startGame() {
+            initAudio();
+            difficultyScreen.classList.add('hidden');
+            currentQ = 0; score = 0; lives = 3; wrongWords = [];
+            updateHearts(); moveRunner();
+            initTimeline();
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentQ >= vocabularyData.length) return endGame(true);
+            stopAnimation();
+            const q = vocabularyData[currentQ];
+            const safePool = distractorPool.filter(d => !hasConflict(d, q.chinese));
+            const shuffledPool = [...safePool].sort(() => Math.random() - 0.5);
+            const options = [q.chinese, shuffledPool[0], shuffledPool[1]].sort(() => Math.random() - 0.5);
+            correctIdx = options.indexOf(q.chinese);
+            questionWord.textContent = q.english;
+            opts.forEach((el, i) => el.textContent = options[i]);
+            updateTimeline();
+            setTimeout(() => { gameActive = true; startAnimation(); }, 400);
+        }
+
+        function checkAnswer() {
+            gameActive = false; stopAnimation();
+            const q = vocabularyData[currentQ];
+            if (currentLane === correctIdx) {
+                score++; playSnd([523, 784]); showMsg('✓ Correct!', 'correct');
+                setTimeout(() => { currentQ++; loadQuestion(); }, 800);
+            } else {
+                lives--; playSnd([330, 196]); showMsg('✗ Wrong!', 'wrong');
+                wrongWords.push(q); updateHearts();
+                if (lives <= 0) setTimeout(() => endGame(false), 1000);
+                else setTimeout(() => { currentQ++; loadQuestion(); }, 1000);
+            }
+            document.getElementById('score').textContent = score;
+        }
+
+        function startAnimation() {
+            animStart = performance.now();
+            function step(ts) {
+                const progress = Math.min((ts - animStart) / GAME_SPEED, 1);
+                boxes.forEach(b => b.style.top = (-200 + (window.innerHeight + 250) * progress) + 'px');
+                if (progress < 1) animFrame = requestAnimationFrame(step); else checkAnswer();
+            }
+            animFrame = requestAnimationFrame(step);
+        }
+
+        function stopAnimation() { if(animFrame) cancelAnimationFrame(animFrame); boxes.forEach(b => b.style.top = '-200px'); }
+        
+        function selectLane(i) { if(gameActive) { currentLane = i; moveRunner(); } }
+        function moveRunner() { const w = gameAreaEl.offsetWidth / 3; runner.style.left = (currentLane * w + w/2 - 25) + 'px'; }
+        
+        function updateHearts() {
+            const c = document.getElementById('livesContainer'); c.innerHTML = '';
+            for(let i=0; i<3; i++) c.innerHTML += `<span class="heart ${i >= lives ? 'lost' : ''}">❤️</span>`;
+        }
+        function updateScore() { document.getElementById('score').textContent = score; document.getElementById('total').textContent = vocabularyData.length; }
+        
+        function initTimeline() {
+            timelineEl.innerHTML = '';
+            vocabularyData.forEach((item, i) => {
+                timelineEl.innerHTML += `<div class="timeline-item" id="t-${i}"><div class="year">${item.english}</div></div>`;
+            });
+        }
+        function updateTimeline() {
+            document.querySelectorAll('.timeline-item').forEach((el, i) => {
+                el.classList.remove('active', 'completed');
+                if (i < currentQ) el.classList.add('completed');
+                else if (i === currentQ) el.classList.add('active');
+            });
+            const activeItem = document.getElementById('t-' + currentQ);
+            if(activeItem) timelineEl.scrollTo({ top: activeItem.offsetTop - 20, behavior: 'smooth' });
+        }
+
+        function showMsg(txt, cls) {
+            const el = document.getElementById('result-message');
+            el.textContent = txt; el.className = 'show ' + cls;
+            setTimeout(() => el.className = '', 700);
+        }
+
+        function endGame(win) {
+            gameActive = false; stopAnimation();
+            document.getElementById('gameOverTitle').textContent = win ? "🎉 闯关成功！" : "😭 继续努力！";
+            document.getElementById('finalScore').textContent = score + " / " + vocabularyData.length;
+            const area = document.getElementById('wrongWordsArea');
+            if (wrongWords.length > 0) {
+                let html = '<div class="wrong-words-section"><h3>📖 错题本复习:</h3><div class="wrong-words-list">';
+                wrongWords.forEach(w => html += `<div class="wrong-word-card"><div class="eng">${w.english}</div><div class="chn">${w.chinese}</div></div>`);
+                area.innerHTML = html + '</div><p class="encourage-text">记得复习这些单词哦！💪</p></div>';
+            } else { area.innerHTML = '<p class="encourage-text" style="color:#2ecc71">太棒了！零错误通关！🏆</p>'; }
+            document.getElementById('gameOver').classList.remove('hidden');
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').classList.add('hidden');
+            startGame();
+        }
+
+        // --- 事件绑定 ---
+        document.getElementById('lane0').onclick = () => selectLane(0);
+        document.getElementById('lane1').onclick = () => selectLane(1);
+        document.getElementById('lane2').onclick = () => selectLane(2);
+        document.addEventListener('keydown', e => {
+            if(e.key === 'ArrowLeft') selectLane(Math.max(0, currentLane-1));
+            if(e.key === 'ArrowRight') selectLane(Math.min(2, currentLane+1));
+        });
+        document.getElementById('soundToggle').onclick = function() {
+            initAudio(); isMuted = !isMuted; this.textContent = isMuted ? '🔇' : '🔊'; this.classList.toggle('muted', isMuted);
+        };
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.onclick = function() {
+                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active'); GAME_SPEED = parseInt(this.dataset.speed);
+            };
+        });
+
+        // 默认初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            const defaultSpeedBtn = document.querySelector('.difficulty-btn.active');
+            if (defaultSpeedBtn) GAME_SPEED = parseInt(defaultSpeedBtn.dataset.speed);
+            // 确保初始显示单元选择界面
+            unitSelectionScreen.classList.remove('hidden');
+            difficultyScreen.classList.add('hidden');
+            gameOverEl.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
